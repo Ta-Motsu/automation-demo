@@ -10,265 +10,262 @@
 <meta property="og:description" content="技術系ニュースサイトのRSSからキーワードに合う記事だけを抽出し、毎日2回Slackへ配信する自動収集システムの紹介と、キーワードを変えて試せる抽出デモです。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@700;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,600..900&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@700;900&display=swap">
 <style>
-/* Layout: 1案件専用。ヒーローのすぐ下に主役の抽出デモ(色付きの枠)を置き、仕組みと設計は枠なしの補足として後ろに並べる */
+/* Layout: 左に小さなラベル、右に本文の2カラムの誌面。落とした見出しには取り消し線、残した見出しには蛍光ペン。蛍光ペンの黄色だけを色として使う */
 :root{
-  --bg:#F2F5F3; --surface:#FFFFFF; --surface2:#E8EEEB; --fg:#14231F; --muted:#51635D; --line:#CFD9D4;
-  --accent:#0B6B5F; --accent-fg:#FFFFFF; --accent-soft:#D5EBE5; --tint:#E3EFEB;
-  --ok:#1B7F4B; --ok-soft:#DDF1E6; --warn:#8F5600; --warn-soft:#FBEBCF;
-  --f-display:"Zen Kaku Gothic New","Noto Sans JP",system-ui,sans-serif;
+  --bg:#F5F6F7; --ink:#0B0C0E; --muted:#62666D; --rule:#D3D6DA; --field:#E9EBED;
+  --hi:#FFE14D; --hi-ink:#0B0C0E;
+  --f-jp:"Zen Kaku Gothic New","Noto Sans JP",system-ui,sans-serif;
   --f-body:"Noto Sans JP",system-ui,-apple-system,"Hiragino Sans","Yu Gothic",sans-serif;
+  --f-en:"Archivo","Arial Narrow",Impact,sans-serif;
   --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#0E1714; --surface:#16231F; --surface2:#1D2D28; --fg:#E4EEEA; --muted:#98ACA5; --line:#2B3D37;
-    --accent:#4FC3B0; --accent-fg:#06201B; --accent-soft:#17352F; --tint:#12221D;
-    --ok:#5ED394; --ok-soft:#173627; --warn:#F0B45A; --warn-soft:#3A2D12;
+    --bg:#0C0D0F; --ink:#F1F2F3; --muted:#8D9299; --rule:#292D32; --field:#17191C;
     color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#0E1714; --surface:#16231F; --surface2:#1D2D28; --fg:#E4EEEA; --muted:#98ACA5; --line:#2B3D37;
-  --accent:#4FC3B0; --accent-fg:#06201B; --accent-soft:#17352F; --tint:#12221D;
-  --ok:#5ED394; --ok-soft:#173627; --warn:#F0B45A; --warn-soft:#3A2D12;
+  --bg:#0C0D0F; --ink:#F1F2F3; --muted:#8D9299; --rule:#292D32; --field:#17191C;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.75;
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.8;
   padding-block:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-.wrap{max-width:1000px;margin:0 auto}
-h1,h2,h3,h4{font-family:var(--f-display);line-height:1.4;text-wrap:balance;margin:0}
-h1{font-size:clamp(1.45rem,6vw,2.5rem);font-weight:900;letter-spacing:.01em}
-h2{font-size:clamp(1.15rem,4.4vw,1.65rem);font-weight:900}
-h3{font-size:1.05rem;font-weight:700}
-p{margin:0}
-.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
-.muted{color:var(--muted)}
-button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:1180px;margin:0 auto}
+h1,h2,h3,h4,p,ul,ol,dl,dd{margin:0}
+ul,ol{padding:0}
+button,input{font:inherit;color:inherit}
 button{cursor:pointer}
-:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--hi);outline-offset:3px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+mark{background:linear-gradient(var(--hi),var(--hi)) no-repeat left center/100% 100%;color:var(--hi-ink);padding:0 .12em;
+  -webkit-box-decoration-break:clone;box-decoration-break:clone}
+@keyframes sweep{from{background-size:0 100%}to{background-size:100% 100%}}
+@keyframes rise{from{transform:translateY(108%)}to{transform:none}}
 
-nav{display:flex;flex-wrap:wrap;gap:6px 18px;padding:18px 0;font-size:.875rem;border-bottom:1px solid var(--line)}
-nav a{color:var(--muted);text-decoration:none}
-nav a:hover{color:var(--accent)}
+.topbar{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:18px 0 14px;border-bottom:2px solid var(--ink);
+  font-family:var(--f-mono);font-size:.74rem;letter-spacing:.08em;text-transform:uppercase}
+.topbar a{text-decoration:none}
+.topbar a:hover{background:var(--hi);color:var(--hi-ink)}
+.topbar nav{display:flex;gap:18px}
+.brand{font-weight:500}
 
-.hero{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:32px;padding:44px 0 40px;align-items:start}
-.hero .lead{margin-top:16px;color:var(--muted);max-width:34em}
-.cta{display:inline-block;margin-top:20px;background:var(--accent);color:var(--accent-fg);padding:9px 22px;border-radius:4px;font-weight:700;font-size:.92rem;text-decoration:none}
-.cta:hover{filter:brightness(1.1)}
-.stats4{display:grid;grid-template-columns:1fr 1fr;gap:20px 24px}
-.st{border-top:2px solid var(--fg);padding-top:8px;min-width:0}
-.st .num{display:block;font-family:var(--f-mono);font-size:clamp(1.6rem,6vw,2.1rem);font-weight:500;line-height:1.2}
-.st .num small{font-size:.85rem;margin-left:4px;font-weight:400;color:var(--muted)}
-.st .num.txt{font-family:var(--f-display);font-weight:900;font-size:clamp(1.15rem,4.4vw,1.5rem);line-height:1.6}
-.st .lab{display:block;font-size:.78rem;color:var(--muted)}
-@media (max-width:760px){.hero{grid-template-columns:minmax(0,1fr)}}
+.hero{padding-top:clamp(36px,8vw,88px)}
+h1{font-family:var(--f-jp);font-weight:900;font-size:clamp(2.05rem,7.2vw,5.4rem);line-height:1.2;letter-spacing:-.01em}
+h1 .ln{display:block;overflow:hidden;padding-bottom:.08em}
+h1 .ln>span{display:block;animation:rise .85s cubic-bezier(.2,.7,.2,1) both}
+h1 .ln:nth-child(2)>span{animation-delay:.1s}
+h1 .ln:nth-child(3)>span{animation-delay:.2s}
+h1 mark{animation:sweep .6s .75s ease-out both}
+.lead{margin-top:28px;max-width:40em;color:var(--muted)}
+.ghostwrap{overflow:hidden;margin-top:30px}
+.ghost{font-family:var(--f-en);font-stretch:62%;font-weight:900;font-size:clamp(5.5rem,24vw,17rem);line-height:.84;letter-spacing:-.01em;
+  color:transparent;-webkit-text-stroke:1.5px var(--ink);user-select:none;white-space:nowrap}
+.spec{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));border-top:2px solid var(--ink);margin-top:26px}
+.spec>div{padding:12px 16px 14px 0;border-bottom:1px solid var(--rule)}
+.spec dt{font-size:.72rem;color:var(--muted);letter-spacing:.06em}
+.spec dd{font-family:var(--f-jp);font-weight:900;font-size:1.2rem;line-height:1.5}
+.spec dd small{display:block;font-family:var(--f-body);font-weight:400;font-size:.74rem;color:var(--muted)}
 
-section{padding:40px 0;border-top:1px solid var(--line)}
-.tag{display:inline-block;font-family:var(--f-mono);font-size:.75rem;letter-spacing:.06em;color:var(--accent);
-  background:var(--accent-soft);padding:2px 10px;border-radius:3px;margin-bottom:12px}
-.sec-lead{margin-top:10px;color:var(--muted);max-width:46em}
+.sec{display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr);gap:20px 32px;border-top:2px solid var(--ink);padding-top:16px;margin-top:clamp(56px,9vw,112px)}
+.sec-label{font-family:var(--f-mono);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase}
+.sec-body{min-width:0}
+h2{font-family:var(--f-jp);font-weight:900;font-size:clamp(1.3rem,3.6vw,2.2rem);line-height:1.4;text-wrap:balance}
+.sec-note{margin-top:12px;max-width:46em;color:var(--muted);font-size:.86rem}
+.kw-label{display:block;font-family:var(--f-mono);font-size:.72rem;letter-spacing:.08em;color:var(--muted)}
 
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:18px;margin-top:20px;min-width:0}
-.panel h3{margin-bottom:10px}
-.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:16px;margin-top:20px}
-.cols>*{min-width:0}
-.cols .panel{margin-top:0}
-.blk{border-top:1px solid var(--line);padding-top:14px;min-width:0}
-.blk h3{margin-bottom:6px}
+#kw{display:block;width:100%;margin-top:28px;padding:6px 0 8px;background:transparent;border:0;border-bottom:2px solid var(--ink);border-radius:0;
+  font-family:var(--f-mono);font-size:clamp(1.15rem,3.4vw,1.9rem)}
+.kwlab{margin-top:28px}
+.srcrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;margin-top:14px;font-size:.86rem}
+.srcrow label{display:flex;gap:7px;align-items:center}
+.srcrow input{accent-color:var(--ink);width:16px;height:16px;margin:0}
+.link{background:none;border:0;border-bottom:1px solid var(--ink);padding:0;font-size:.82rem;margin-left:auto}
+.link:hover{background:var(--hi);color:var(--hi-ink)}
 
-.demo-box{background:var(--tint);border:1.5px solid var(--accent);border-radius:10px;padding:18px;margin-top:16px}
-.demo-box>.panel:first-child{margin-top:0}
-.demo-box .cols{margin-top:16px}
+.count{display:flex;flex-wrap:wrap;gap:6px 36px;margin-top:30px}
+.count span{font-size:.74rem;color:var(--muted);letter-spacing:.06em}
+.count b{display:block;font-family:var(--f-en);font-stretch:62%;font-weight:800;font-size:clamp(2.8rem,9vw,4.8rem);line-height:.95;color:var(--ink);margin-top:2px}
+.demo{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:28px 40px;margin-top:22px;align-items:start}
+.wire{list-style:none;border-top:2px solid var(--ink)}
+.wire li{padding:12px 0 13px;border-bottom:1px solid var(--rule)}
+.wire .meta{display:flex;flex-wrap:wrap;gap:2px 12px;align-items:center;font-family:var(--f-mono);font-size:.7rem;color:var(--muted)}
+.wire .hit{background:var(--hi);color:var(--hi-ink);padding:0 6px}
+.wire h4{font-family:var(--f-body);font-weight:700;font-size:1rem;line-height:1.55;margin-top:3px}
+.wire p{font-size:.84rem;color:var(--muted);margin-top:2px}
+.wire li.off h4{font-weight:400;color:var(--muted);text-decoration:line-through;text-decoration-thickness:1px}
+.wire li.off p{display:none}
+.wire mark{animation:sweep .4s ease-out both}
+.wire .empty{color:var(--muted);font-size:.9rem;padding:16px 0}
+.slack{border:1px solid var(--ink);padding:14px;min-width:0;position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}
+.slack-head{display:flex;justify-content:space-between;gap:10px;font-family:var(--f-mono);font-size:.7rem;color:var(--muted);border-bottom:1px solid var(--rule);padding-bottom:8px}
+#slackMsg{white-space:pre-wrap;word-break:break-word;font-size:.82rem;line-height:1.75;margin-top:10px;max-height:460px;overflow:auto}
+.slack-foot{font-size:.74rem;color:var(--muted);margin-top:8px}
 
-ol.steps{list-style:none;padding:0;margin:20px 0 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:18px 20px;counter-reset:s}
-ol.steps li{counter-increment:s;border-top:1px solid var(--fg);padding:10px 0 0;min-width:0;font-size:.88rem}
-ol.steps li::before{content:"STEP " counter(s);display:block;font-family:var(--f-mono);font-size:.72rem;color:var(--accent);margin-bottom:4px}
-ol.steps li b{display:block;font-family:var(--f-display);font-size:1rem;margin-bottom:4px}
+ol.steps{list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:24px;margin-top:26px;counter-reset:s}
+ol.steps li{counter-increment:s;border-top:2px solid var(--ink);padding-top:10px;min-width:0;font-size:.88rem;color:var(--muted)}
+ol.steps li::before{content:counter(s,decimal-leading-zero);display:block;font-family:var(--f-en);font-stretch:62%;font-weight:800;font-size:3.2rem;line-height:1;color:var(--ink);margin-bottom:6px}
+ol.steps b{display:block;font-family:var(--f-jp);font-weight:900;font-size:1.1rem;color:var(--ink)}
 
-.sched{margin-top:28px;padding-top:18px;border-top:1px solid var(--line)}
-.sched-top{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 16px;align-items:baseline}
-.day{position:relative;height:26px;background:var(--surface2);border-radius:4px;margin-top:14px}
-.day .tick{position:absolute;top:0;bottom:0;width:4px;margin-left:-2px;background:var(--accent);border-radius:2px}
-.day .now{position:absolute;top:-4px;bottom:-4px;width:2px;margin-left:-1px;background:var(--fg)}
-.axis{position:relative;height:40px;margin-top:6px;font-family:var(--f-mono);font-size:.72rem;color:var(--muted)}
-.axis span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}
-.axis span.l{transform:none}
-.axis span.r{transform:translateX(-100%)}
-.axis span.run{top:16px;color:var(--accent);font-weight:500}
-.legend{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:.78rem;color:var(--muted);margin-top:4px}
-.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.clock{margin-top:56px}
+.clock-big{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 18px;margin-top:6px}
+.clock-big .js-at{font-family:var(--f-en);font-stretch:62%;font-weight:800;font-size:clamp(3rem,11vw,5.6rem);line-height:1}
+.clock-big .js-in{font-size:.9rem;color:var(--muted)}
+.ruler{position:relative;height:50px;margin-top:40px;border-top:2px solid var(--ink)}
+.ruler::before{content:"";position:absolute;left:0;right:0;top:0;height:9px;background:repeating-linear-gradient(to right,var(--ink) 0 1px,transparent 1px calc(100% / 24))}
+.ruler::after{content:"";position:absolute;right:0;top:0;height:9px;width:1px;background:var(--ink)}
+.hl{position:absolute;top:-24px;transform:translateX(-50%);font-family:var(--f-mono);font-size:.7rem;color:var(--muted);white-space:nowrap}
+.hl.l{transform:none}
+.hl.r{transform:translateX(-100%)}
+.run{position:absolute;top:-2px;width:8px;height:24px;margin-left:-4px;background:var(--hi);border:1px solid var(--ink)}
+.rl{position:absolute;top:28px;transform:translateX(-50%);font-family:var(--f-mono);font-size:.76rem;background:var(--hi);color:var(--hi-ink);padding:0 6px;white-space:nowrap}
+.now{position:absolute;top:-2px;height:24px;width:2px;margin-left:-1px;background:var(--ink)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 20px;font-size:.76rem;color:var(--muted);margin-top:10px}
 
-.mock-note{background:var(--warn-soft);color:var(--warn);border-radius:4px;padding:8px 12px;font-size:.84rem;margin-top:16px}
-input[type=text]{width:100%;background:var(--surface2);border:1px solid var(--line);border-radius:4px;padding:8px 10px;font-family:var(--f-mono);font-size:.9rem;color:var(--fg)}
-label.f{display:flex;gap:8px;align-items:center;font-size:.85rem}
-.field-label{display:block;font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:6px}
-.srcs{display:flex;flex-wrap:wrap;gap:8px 18px}
-.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-.btn{background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:5px 14px;font-weight:700;font-size:.82rem}
-.btn:hover{background:var(--accent-soft)}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:28px 40px;margin-top:26px}
+.notes>div{min-width:0}
+.notes h3{font-family:var(--f-jp);font-weight:900;font-size:1.1rem;border-top:2px solid var(--ink);padding-top:10px}
+.notes ul{list-style:none}
+.notes li{padding:9px 0;border-bottom:1px solid var(--rule);font-size:.9rem}
 
-.stats{display:flex;flex-wrap:wrap;gap:6px 22px;font-size:.85rem;margin:16px 0 4px}
-.stats b{font-family:var(--f-mono);font-size:1.1rem;margin-left:4px}
-.art-list{list-style:none;padding:0;margin:10px 0 0;display:grid;gap:8px}
-.art{border:1px solid var(--line);border-radius:6px;padding:12px 14px;background:var(--surface);min-width:0}
-.art.off{opacity:.6;padding:8px 14px}
-.art.off p{display:none}
-.art.off h4{margin:4px 0 0}
-.art-head{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;font-size:.74rem;color:var(--muted)}
-.art h4{margin:6px 0 2px;font-size:.96rem}
-.art p{font-size:.84rem;color:var(--muted)}
-.pill{display:inline-block;font-size:.72rem;font-weight:700;padding:0 9px;border-radius:99px;white-space:nowrap;background:var(--surface2);color:var(--muted)}
-.pill.ok{background:var(--ok-soft);color:var(--ok)}
-.kwtag{font-family:var(--f-mono);font-size:.7rem;background:var(--accent-soft);color:var(--accent);padding:0 8px;border-radius:99px}
-mark{background:var(--accent-soft);color:var(--accent);border-radius:2px;padding:0 2px;font-weight:700}
-.empty{padding:16px;color:var(--muted);font-size:.88rem}
+footer{margin-top:clamp(64px,10vw,120px);border-top:2px solid var(--ink);padding:14px 0 56px;font-family:var(--f-mono);font-size:.72rem;color:var(--muted)}
 
-.slack{display:flex;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px;min-width:0}
-.avatar{flex:none;width:36px;height:36px;border-radius:6px;background:var(--accent);color:var(--accent-fg);font-family:var(--f-display);font-weight:900;display:grid;place-items:center}
-.slack-main{min-width:0;flex:1}
-.slack-meta{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;font-size:.86rem}
-.slack-meta b{font-weight:700}
-.slack-meta .app{font-size:.62rem;font-weight:700;background:var(--surface2);color:var(--muted);padding:0 5px;border-radius:3px}
-.slack-meta .t{font-size:.72rem;color:var(--muted)}
-.msgbody{white-space:pre-wrap;word-break:break-word;font-size:.84rem;line-height:1.7;margin-top:4px;max-height:420px;overflow:auto}
-
-ul.plain{margin:8px 0 0;padding-left:1.2em;font-size:.88rem}
-ul.plain li{margin:5px 0}
-footer{border-top:1px solid var(--line);padding:28px 0 40px;color:var(--muted);font-size:.85rem}
-@media (max-width:560px){
-  nav{padding:12px 0}
-  section{padding:28px 0}
-  .hero{padding:26px 0 24px;gap:22px}
-  .demo-box{padding:12px}
-  .mock-note{font-size:.8rem}
+@media (max-width:760px){
+  .sec{grid-template-columns:minmax(0,1fr)}
+  .demo{grid-template-columns:minmax(0,1fr)}
+  .slack{position:static}
+  .link{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *{animation:none!important;transition:none!important}
 }
 </style>
 </head>
 <body>
 <div class="wrap">
-<nav aria-label="ページ内リンク">
-  <a href="#about">概要</a>
-  <a href="#demo">抽出デモ</a>
-  <a href="#flow">仕組みと実行時刻</a>
-  <a href="#design">設計と変更できる項目</a>
-</nav>
-
-<header class="hero" id="about">
-  <div>
-    <h1>技術ニュースを、キーワードで絞って毎日自動で届けるBot</h1>
-    <p class="lead">4つの技術系ニュースサイトのRSSを取得し、設定したキーワードに関係する記事だけを抽出して、Slackに配信します。常時稼働のサーバーは使わず、決まった時刻に自動で動いています。</p>
-    <a class="cta" href="#demo">抽出デモを試す</a>
-  </div>
-  <div class="stats4" role="list">
-    <div class="st" role="listitem"><span class="num">2<small>回/日</small></span><span class="lab">自動実行</span></div>
-    <div class="st" role="listitem"><span class="num">4<small>サイト</small></span><span class="lab">RSSを取得</span></div>
-    <div class="st" role="listitem"><span class="num txt">無料枠内</span><span class="lab">運用費用</span></div>
-    <div class="st" role="listitem"><span class="num txt">Slack</span><span class="lab">配信先</span></div>
-  </div>
+<header class="topbar">
+  <a class="brand" href="#top">News Filter Bot</a>
+  <nav aria-label="ページ内リンク"><a href="#demo">Demo</a><a href="#how">How</a><a href="#notes">Notes</a></nav>
 </header>
 
-<section id="demo">
-  <span class="tag">抽出デモ</span>
-  <h2>キーワードを変えると、抽出される記事が変わります</h2>
-  <p class="sec-lead">下の入力欄のキーワードを書き換えてみてください。サンプル記事から該当するものがその場で抽出され、Slackに届く文面も更新されます。</p>
-  <div class="mock-note">記事はすべて架空のサンプルで、実在のニュースサイトの記事ではありません。この画面から外部への通信は行いません。判定は、タイトルと概要文にキーワードが含まれるかどうかで行います。英数字のキーワードは単語単位で、大文字小文字を区別せずに判定します(このデモでの判定ルールです)。</div>
+<main>
+<section class="hero" id="top">
+  <h1>
+    <span class="ln"><span>技術ニュースから、</span></span>
+    <span class="ln"><span><mark>AI</mark>の話題だけを、</span></span>
+    <span class="ln"><span>毎日2回、Slackへ。</span></span>
+  </h1>
+  <p class="lead">4つの技術系ニュースサイトのRSSを取得し、設定したキーワードに合う記事だけを抽出して、Slackに配信します。常時稼働のサーバーは使わず、GitHub Actionsが決まった時刻に動かしています。</p>
+  <div class="ghostwrap" aria-hidden="true"><div class="ghost">FILTER</div></div>
+  <dl class="spec">
+    <div><dt>実行</dt><dd>毎日2回</dd></div>
+    <div><dt>取得先</dt><dd>4サイト</dd></div>
+    <div><dt>実行基盤</dt><dd>GitHub Actions</dd></div>
+    <div><dt>運用費用</dt><dd>無料枠内</dd></div>
+    <div><dt>次回の実行</dt><dd><span class="js-at">--:--</span><small class="js-in"></small></dd></div>
+  </dl>
+</section>
 
-  <div class="demo-box">
-    <div class="panel">
-      <label class="field-label" for="kw">抽出キーワード(カンマ区切り)</label>
-      <input type="text" id="kw" value="AI, 生成AI, LLM, OpenAI" autocomplete="off" spellcheck="false">
-      <span class="field-label" style="margin-top:14px">取得先(架空の4媒体)</span>
-      <div class="srcs">
-        <label class="f"><input type="checkbox" id="srcA" checked>媒体A</label>
-        <label class="f"><input type="checkbox" id="srcB" checked>媒体B</label>
-        <label class="f"><input type="checkbox" id="srcC" checked>媒体C</label>
-        <label class="f"><input type="checkbox" id="srcD" checked>媒体D</label>
-      </div>
-      <div class="row" style="margin-top:14px"><button class="btn" id="btnReset" type="button">初期設定に戻す</button></div>
+<section class="sec" id="demo">
+  <div class="sec-label">Demo</div>
+  <div class="sec-body">
+    <h2>キーワードを変えると、残る記事が変わります</h2>
+    <p class="sec-note">架空のサンプル記事12件で試せます。判定は、タイトルと概要文にキーワードが含まれるかどうかです。英数字のキーワードは単語単位で、大文字小文字を区別しません(このデモでの判定ルールです)。外部への通信は行いません。</p>
+
+    <label class="kw-label kwlab" for="kw">抽出キーワード(カンマ区切り)</label>
+    <input type="text" id="kw" value="AI, 生成AI, LLM, OpenAI" autocomplete="off" spellcheck="false" style="margin-top:6px">
+    <div class="srcrow">
+      <span class="kw-label">取得先(架空の4媒体)</span>
+      <label><input type="checkbox" id="srcA" checked>媒体A</label>
+      <label><input type="checkbox" id="srcB" checked>媒体B</label>
+      <label><input type="checkbox" id="srcC" checked>媒体C</label>
+      <label><input type="checkbox" id="srcD" checked>媒体D</label>
+      <button class="link" id="btnReset" type="button">初期設定に戻す</button>
     </div>
 
-    <div class="cols">
-      <div class="panel">
-        <h3>取得した記事と判定結果</h3>
-        <div class="stats" id="stats"></div>
-        <ul class="art-list" id="artList"></ul>
-      </div>
-      <div class="panel">
-        <h3>Slackに届く文面のプレビュー</h3>
-        <div class="slack">
-          <div class="avatar" aria-hidden="true">N</div>
-          <div class="slack-main">
-            <div class="slack-meta"><b>ニュース収集Bot</b><span class="app">APP</span><span class="t mono">06:15</span></div>
-            <div class="msgbody" id="slackMsg"></div>
-          </div>
-        </div>
-        <p class="muted" style="font-size:.76rem;margin-top:8px">Botの名前と時刻は表示例です。</p>
-      </div>
+    <div class="count" aria-live="polite">
+      <div><span>取得</span><b id="cFetched">0</b></div>
+      <div><span>抽出</span><b id="cKept">0</b></div>
+      <div><span>対象外</span><b id="cDropped">0</b></div>
+    </div>
+
+    <div class="demo">
+      <ul class="wire" id="artList"></ul>
+      <aside class="slack" aria-label="Slackに届く文面のプレビュー">
+        <div class="slack-head"><span>#news-bot</span><span>Bot · 06:15</span></div>
+        <div id="slackMsg"></div>
+        <p class="slack-foot">Slackに届く文面のプレビュー。Botの名前と時刻は表示例です。</p>
+      </aside>
     </div>
   </div>
 </section>
 
-<section id="flow">
-  <span class="tag">仕組みと実行時刻</span>
-  <h2>取得、抽出、整形、配信までを自動で実行します</h2>
-  <ol class="steps">
-    <li><b>取得</b>4つの技術系ニュースサイトのRSSを取得します。</li>
-    <li><b>抽出</b>設定したキーワードを含む記事だけを残します。</li>
-    <li><b>整形</b>媒体名、タイトル、RSSの概要文、URLを、読みやすい文面にまとめます。</li>
-    <li><b>配信</b>Slackに投稿します。該当記事が0件のサイトも「0件」と知らせます。決まった時刻にGitHub Actionsが自動で起動します。</li>
-  </ol>
+<section class="sec" id="how">
+  <div class="sec-label">How it works</div>
+  <div class="sec-body">
+    <h2>取得、抽出、整形、配信までを自動で実行します</h2>
+    <ol class="steps">
+      <li><b>取得</b>4つの技術系ニュースサイトのRSSを取得します。</li>
+      <li><b>抽出</b>設定したキーワードを含む記事だけを残します。</li>
+      <li><b>整形</b>媒体名、タイトル、RSSの概要文、URLを、読みやすい文面にまとめます。</li>
+      <li><b>配信</b>Slackに投稿します。該当記事が0件のサイトも「0件」と知らせます。決まった時刻にGitHub Actionsが自動で起動します。</li>
+    </ol>
 
-  <div class="sched">
-    <div class="sched-top">
-      <h3 style="margin:0">実行スケジュール(日本時間)</h3>
-      <span class="mono" id="nextRun" style="font-size:.88rem"></span>
-    </div>
-    <div class="day" role="img" aria-label="1日24時間の帯。6時15分と16時15分に実行します。">
-      <i class="tick" style="left:26.042%"></i><i class="tick" style="left:67.708%"></i><i class="now" id="nowMark"></i>
-    </div>
-    <div class="axis" aria-hidden="true">
-      <span class="l" style="left:0">0時</span><span style="left:25%">6時</span><span style="left:50%">12時</span><span style="left:75%">18時</span><span class="r" style="left:100%">24時</span>
-      <span class="run" style="left:26.042%">06:15</span><span class="run" style="left:67.708%">16:15</span>
-    </div>
-    <div class="legend"><span><i style="background:var(--accent)"></i>自動実行の時刻</span><span><i style="background:var(--fg)"></i>現在の時刻</span></div>
-  </div>
-</section>
-
-<section id="design">
-  <span class="tag">設計と変更できる項目</span>
-  <h2>無料で動かし続けるための設計と、ご要望に合わせて変えられる点</h2>
-  <div class="cols">
-    <div class="blk">
-      <h3>設計の考え方</h3>
-      <ul class="plain">
-        <li>常時稼働のサーバーを使わず、決まった時刻にだけ動く構成にして、運用費用を無料枠の範囲に収めています。</li>
-        <li>取得先には、連絡先を入れたUser-Agentでアクセスします。</li>
-        <li>この公開版は、RSSに含まれる概要文だけを扱います。記事の本文は取得しません。</li>
-        <li>取得先の利用条件を確認し、認められている範囲で取得します。</li>
-        <li>ソースコードは公開していません。</li>
-      </ul>
-    </div>
-    <div class="blk">
-      <h3>ご要望に応じて変更できる項目</h3>
-      <ul class="plain">
-        <li>抽出キーワード(除外したい語の指定を含む)</li>
-        <li>取得するサイトとRSS</li>
-        <li>実行する時刻と回数</li>
-        <li>配信先(Slack以外のメールやチャットなど)</li>
-      </ul>
+    <div class="clock">
+      <span class="kw-label">実行スケジュール(日本時間)</span>
+      <div class="clock-big"><span class="js-at">--:--</span><span class="js-in"></span></div>
+      <div class="ruler" role="img" aria-label="1日24時間の目盛り。6時15分と16時15分に実行します。">
+        <span class="hl l" style="left:0">0</span><span class="hl" style="left:25%">6</span><span class="hl" style="left:50%">12</span><span class="hl" style="left:75%">18</span><span class="hl r" style="left:100%">24</span>
+        <i class="run" style="left:26.042%"></i><i class="run" style="left:67.708%"></i><i class="now" id="nowMark"></i>
+        <span class="rl" style="left:26.042%">06:15</span><span class="rl" style="left:67.708%">16:15</span>
+      </div>
+      <div class="legend"><span>黄色: 自動実行の時刻</span><span>黒い線: 現在の時刻</span></div>
     </div>
   </div>
 </section>
 
-<footer>ご相談は、クラウドワークスのメッセージからお願いします。デモの記事とタイトルはすべて架空のものです。</footer>
+<section class="sec" id="notes">
+  <div class="sec-label">Notes</div>
+  <div class="sec-body">
+    <h2>無料で動かし続けるための設計と、変更できる箇所</h2>
+    <div class="notes">
+      <div>
+        <h3>設計の考え方</h3>
+        <ul>
+          <li>常時稼働のサーバーを使わず、決まった時刻にだけ動く構成にして、運用費用を無料枠の範囲に収めています。</li>
+          <li>取得先には、連絡先を入れたUser-Agentでアクセスします。</li>
+          <li>この公開版は、RSSに含まれる概要文だけを扱います。記事の本文は取得しません。</li>
+          <li>取得先の利用条件を確認し、認められている範囲で取得します。</li>
+          <li>ソースコードは公開していません。</li>
+        </ul>
+      </div>
+      <div>
+        <h3>変更できる項目</h3>
+        <ul>
+          <li>抽出キーワード(除外したい語の指定を含む)</li>
+          <li>取得するサイトとRSS</li>
+          <li>実行する時刻と回数</li>
+          <li>配信先(Slack以外のメールやチャットなど)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>デモの記事とタイトルはすべて架空のものです。</footer>
 </div>
 
 <script>
 (function(){
 var $=function(s){return document.querySelector(s)};
+var $$=function(s){return document.querySelectorAll(s)};
 var esc=function(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
 var DEFAULT_KW='AI, 生成AI, LLM, OpenAI';
 var ARTS=[
@@ -322,11 +319,11 @@ function render(){
     kws.forEach(function(k){if(t.hit[k]||s.hit[k])hit.push(k)});
     var ok=hit.length>0;
     if(ok){got++;slack.push('[媒体'+a.src+'] '+a.title+'\n【RSS概要】'+a.sum+'\n'+a.url)}
-    html+='<li class="art'+(ok?'':' off')+'"><div class="art-head"><span class="pill'+(ok?' ok':'')+'">'+(ok?'抽出':'対象外')+'</span><span>媒体'+a.src+'</span><span class="mono">'+esc(a.date)+'</span>'+
-      hit.map(function(k){return '<span class="kwtag">'+esc(k)+'</span>'}).join('')+'</div>'+
-      '<h4>'+markUp(a.title,t.ranges)+'</h4><p>'+markUp(a.sum,s.ranges)+'</p></li>';
+    html+='<li class="'+(ok?'on':'off')+'"><div class="meta"><span>媒体'+a.src+'</span><span>'+esc(a.date)+'</span>'+
+      hit.map(function(k){return '<span class="hit">'+esc(k)+'</span>'}).join('')+'</div>'+
+      '<h4><span class="sr">'+(ok?'抽出: ':'対象外: ')+'</span>'+markUp(a.title,t.ranges)+'</h4><p>'+markUp(a.sum,s.ranges)+'</p></li>';
   });
-  $('#stats').innerHTML='<span>取得<b>'+fetched+'</b>件</span><span>抽出<b>'+got+'</b>件</span><span>対象外<b>'+(fetched-got)+'</b>件</span>';
+  $('#cFetched').textContent=fetched;$('#cKept').textContent=got;$('#cDropped').textContent=fetched-got;
   $('#artList').innerHTML=html||'<li class="empty">取得先が選ばれていません。媒体にチェックを入れてください。</li>';
   var msg;
   if(!kws.length)msg='キーワードが空のため、配信する記事はありません。';
@@ -347,7 +344,9 @@ function sched(){
   if(next===null){next=slots[0]+1440;tomorrow=true}
   var diff=next-mins,h=Math.floor(diff/60),m=diff%60;
   var at=next%1440,hh=String(Math.floor(at/60)).padStart(2,'0'),mm=String(at%60).padStart(2,'0');
-  $('#nextRun').textContent='次回の実行予定 '+(tomorrow?'明日 ':'')+hh+':'+mm+'(あと'+(h?h+'時間':'')+m+'分)';
+  var atTxt=hh+':'+mm,inTxt=(tomorrow?'明日 ':'')+'あと'+(h?h+'時間':'')+m+'分';
+  Array.prototype.forEach.call($$('.js-at'),function(e){e.textContent=atTxt});
+  Array.prototype.forEach.call($$('.js-in'),function(e){e.textContent=inTxt});
   $('#nowMark').style.left=(mins/1440*100)+'%';
 }
 sched();setInterval(sched,30000);
