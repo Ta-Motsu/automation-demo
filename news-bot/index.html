@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>ニュース自動収集Bot</title>
-<meta name="description" content="技術系ニュースサイトのRSSからキーワードに合う記事だけを抽出し、毎日2回Slackへ配信する自動収集システムの紹介と、キーワードを変えて試せる抽出デモです。">
+<title>AIニュース配信Bot</title>
+<meta name="description" content="技術系メディアと公式ブログ8サイトのRSSからAI関連ニュースを集め、重複を除いて毎日2回Slackへ自動配信するBotの、要件定義・基本設計・テストの紹介と、キーワードを変えて試せる抽出デモです。">
 <meta property="og:type" content="website">
-<meta property="og:title" content="ニュース自動収集Bot">
-<meta property="og:description" content="技術系ニュースサイトのRSSからキーワードに合う記事だけを抽出し、毎日2回Slackへ配信する自動収集システムの紹介と、キーワードを変えて試せる抽出デモです。">
+<meta property="og:title" content="AIニュース配信Bot">
+<meta property="og:description" content="技術系メディアと公式ブログ8サイトのRSSからAI関連ニュースを集め、重複を除いて毎日2回Slackへ自動配信するBotの、要件定義・基本設計・テストの紹介と、キーワードを変えて試せる抽出デモです。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,600..900&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@700;900&display=swap">
@@ -132,6 +132,26 @@ ol.steps b{display:block;font-family:var(--f-jp);font-weight:900;font-size:1.1re
 .notes li{padding:9px 0;border-bottom:1px solid var(--rule);font-size:.92rem}
 .notes li:last-child{border-bottom:0}
 
+
+.stack{display:grid;gap:20px;margin-top:26px}
+.panel h3{font-family:var(--f-jp);font-weight:900;font-size:1.05rem;line-height:1.5;margin-bottom:8px}
+.panel ul.b,.panel ol.n{padding-left:1.3em}
+.panel ul.b li,.panel ol.n li{margin:5px 0;font-size:.92rem}
+.panel .plain{font-size:.92rem;margin-bottom:10px}
+.tblwrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.9rem;line-height:1.7}
+th,td{text-align:left;vertical-align:top;padding:9px 12px 9px 0;border-bottom:1px solid var(--rule)}
+tbody tr:last-child>*{border-bottom:0}
+thead th{font-family:var(--f-mono);font-size:.72rem;font-weight:500;letter-spacing:.08em;color:var(--muted);border-bottom:2px solid var(--ink)}
+tbody th{font-family:var(--f-jp);font-weight:900;white-space:nowrap;padding-right:24px}
+td code,.code{font-family:var(--f-mono)}
+td code{background:var(--field);padding:0 .3em;font-size:.85em}
+pre.code{margin:0;background:var(--field);padding:12px 14px;font-size:.78rem;line-height:1.75;overflow-x:auto;white-space:pre}
+ul.check{list-style:none;padding:0}
+ul.check li{display:flex;gap:10px;margin:6px 0;font-size:.92rem}
+ul.check li::before{content:"";flex:none;width:15px;height:15px;margin-top:6px;border:2px solid var(--ink)}
+ul.check li.done::before{background:var(--hi)}
+
 footer{margin-top:clamp(64px,10vw,120px);border-top:2px solid var(--ink);padding:14px 0 56px;font-family:var(--f-mono);font-size:.72rem;color:var(--muted)}
 
 @media (max-width:900px){
@@ -139,6 +159,7 @@ footer{margin-top:clamp(64px,10vw,120px);border-top:2px solid var(--ink);padding
   .spec>div:last-child{grid-column:1/-1}
 }
 @media (max-width:760px){
+  tbody th{white-space:normal;padding-right:12px}
   .sec{grid-template-columns:minmax(0,1fr)}
   .demo{grid-template-columns:minmax(0,1fr)}
   .slack{position:static}
@@ -154,7 +175,7 @@ footer{margin-top:clamp(64px,10vw,120px);border-top:2px solid var(--ink);padding
 <div class="wrap">
 <header class="topbar">
   <a class="brand" href="#top">News Filter Bot</a>
-  <nav aria-label="ページ内リンク"><a href="#demo">Demo</a><a href="#how">How</a><a href="#notes">Notes</a></nav>
+  <nav aria-label="ページ内リンク"><a href="#demo">Demo</a><a href="#req">Spec</a><a href="#design">Design</a><a href="#quality">Quality</a></nav>
 </header>
 
 <main>
@@ -164,13 +185,13 @@ footer{margin-top:clamp(64px,10vw,120px);border-top:2px solid var(--ink);padding
     <span class="ln"><span><mark>AI</mark>の話題だけを、</span></span>
     <span class="ln"><span>毎日2回、Slackへ。</span></span>
   </h1>
-  <p class="lead">4つの技術系ニュースサイトのRSSを取得し、設定したキーワードに合う記事だけを抽出して、Slackに配信します。常時稼働のサーバーは使わず、GitHub Actionsが決まった時刻に動かしています。</p>
+  <p class="lead">技術系メディアと公式ブログ8サイトのRSSからAI関連ニュースを集め、重複を除いてSlackへ自動配信します。GitHub Actionsだけで動き、常時稼働のサーバーは使いません。運用費用は0円です。</p>
   <dl class="spec">
     <div><dt>実行</dt><dd>毎日2回</dd></div>
-    <div><dt>取得先</dt><dd>4サイト</dd></div>
+    <div><dt>取得先</dt><dd>8サイト</dd></div>
     <div><dt>実行基盤</dt><dd>GitHub Actions</dd></div>
-    <div><dt>運用費用</dt><dd>無料枠内</dd></div>
-    <div><dt>次回の実行</dt><dd><span class="js-at">--:--</span><small class="js-in"></small></dd></div>
+    <div><dt>運用費用</dt><dd>0円</dd></div>
+    <div><dt>単体テスト</dt><dd>64件<small>pushごとに自動実行</small></dd></div>
   </dl>
 </section>
 
@@ -178,7 +199,7 @@ footer{margin-top:clamp(64px,10vw,120px);border-top:2px solid var(--ink);padding
   <div class="sec-label">Demo</div>
   <div class="sec-body">
     <h2>キーワードを変えると、残る記事が変わります</h2>
-    <p class="sec-note">架空のサンプル記事12件で試せます。判定は、タイトルと概要文にキーワードが含まれるかどうかです。英数字のキーワードは単語単位で、大文字小文字を区別しません(このデモでの判定ルールです)。外部への通信は行いません。</p>
+    <p class="sec-note">架空のサンプル記事12件で試せます。判定は、タイトルと概要文にキーワードが含まれるかどうかです。英数字のキーワードは単語単位で、大文字小文字を区別しません(このデモでの判定ルールです)。外部への通信は行いません。実際のBotの対象は8サイトで、ここでは仕組みを示す簡易版です。</p>
 
     <div class="panel controls">
     <label class="kw-label" for="kw">抽出キーワード(カンマ区切り)</label>
@@ -203,9 +224,9 @@ footer{margin-top:clamp(64px,10vw,120px);border-top:2px solid var(--ink);padding
       <ul class="wire" id="artList"></ul>
     </div>
       <aside class="panel slack" aria-label="Slackに届く文面のプレビュー">
-        <div class="slack-head"><span>#news-bot</span><span>Bot · 06:15</span></div>
+        <div class="slack-head"><span>#news-bot</span><span>Bot · 07時台</span></div>
         <div id="slackMsg"></div>
-        <p class="slack-foot">Slackに届く文面のプレビュー。Botの名前と時刻は表示例です。</p>
+        <p class="slack-foot">Slackに届く文面のプレビュー(サイトごとに1通、0件のサイトも知らせます)。Botの名前と時刻は表示例です。</p>
       </aside>
     </div>
   </div>
@@ -216,10 +237,10 @@ footer{margin-top:clamp(64px,10vw,120px);border-top:2px solid var(--ink);padding
   <div class="sec-body">
     <h2>取得、抽出、整形、配信までを自動で実行します</h2>
     <ol class="steps">
-      <li><b>取得</b>4つの技術系ニュースサイトのRSSを取得します。</li>
-      <li><b>抽出</b>設定したキーワードを含む記事だけを残します。</li>
-      <li><b>整形</b>媒体名、タイトル、RSSの概要文、URLを、読みやすい文面にまとめます。</li>
-      <li><b>配信</b>Slackに投稿します。該当記事が0件のサイトも「0件」と知らせます。決まった時刻にGitHub Actionsが自動で起動します。</li>
+      <li><b>取得</b>技術系メディアと公式ブログ8サイトのRSSを取得します。</li>
+      <li><b>抽出</b>AI関連のキーワードを含む記事だけを残し、広告表記の記事と配信済みの記事を除きます。</li>
+      <li><b>整形</b>媒体名、タイトル、公開日時、RSSの概要文、URLを、読みやすい文面にまとめます。</li>
+      <li><b>配信</b>Slackに投稿します。該当記事が0件のサイトも「0件」と知らせます。決まった時刻にGitHub Actionsが自動で起動し、配信は7時台と17時台です。</li>
     </ol>
 
     <div class="clock panel">
@@ -230,33 +251,222 @@ footer{margin-top:clamp(64px,10vw,120px);border-top:2px solid var(--ink);padding
         <i class="run" style="left:26.042%"></i><i class="run" style="left:67.708%"></i><i class="now" id="nowMark"></i>
         <span class="rl" style="left:26.042%">06:15</span><span class="rl" style="left:67.708%">16:15</span>
       </div>
-      <div class="legend"><span>水色: 自動実行の時刻</span><span>黒い線: 現在の時刻</span></div>
+      <div class="legend"><span>水色: 起動時刻の設定(配信は約1時間後)</span><span>黒い線: 現在の時刻</span></div>
     </div>
   </div>
 </section>
 
-<section class="sec" id="notes">
-  <div class="sec-label">Notes</div>
+<section class="sec" id="req">
+  <div class="sec-label">Requirements</div>
   <div class="sec-body">
-    <h2>無料で動かすための設計と、変更できる箇所</h2>
-    <div class="notes">
+    <h2>要件定義</h2>
+    <p class="sec-note">何を、どこまで、どんな条件で行うかを先に決めて作りました。</p>
+    <div class="stack">
       <div class="panel">
-        <h3>設計の考え方</h3>
-        <ul>
-          <li>常時稼働のサーバーを使わず、決まった時刻にだけ動く構成にして、運用費用を無料枠の範囲に収めています。</li>
-          <li>取得先には、連絡先を入れたUser-Agentでアクセスします。</li>
-          <li>この公開版は、RSSに含まれる概要文だけを扱います。記事の本文は取得しません。</li>
-          <li>取得先の利用条件を確認し、認められている範囲で取得します。</li>
-          <li>ソースコードは公開していません。</li>
+        <h3>概要</h3>
+        <div class="tblwrap"><table>
+          <tbody>
+            <tr><th scope="row">成果物</th><td>RSS収集 → キーワード抽出 → 重複排除 → Slack配信を、1日2回自動で行うボット</td></tr>
+            <tr><th scope="row">開発プロセス</th><td>要件定義 → 基本設計 → 実装 → 単体テスト → ドライラン → 本番確認。各工程の成果物を生成AIにレビューさせ、指摘は公式情報やテストで裏付けてから取捨選択しました</td></tr>
+            <tr><th scope="row">技術</th><td>Python 3.12、GitHub Actions、feedparser、requests、PyYAML、pytest、Slack Incoming Webhook</td></tr>
+            <tr><th scope="row">運用費用</th><td>0円(GitHub Actionsの無料枠のみ。常時稼働サーバーなし)</td></tr>
+            <tr><th scope="row">品質</th><td>単体テスト64件をpushごとに自動実行。本番環境での配信を確認済み</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+
+      <div class="panel">
+        <h3>目的・基本方針</h3>
+        <ul class="b">
+          <li><b>目的</b>:技術系メディアからAI関連ニュースを自動で集め、重複を除いてSlackへ定期配信し、情報収集の手間を減らす。</li>
+          <li><b>コスト</b>:初期費用・運用費用ともに0円。常時稼働サーバーの保守を不要にする。</li>
+          <li><b>対象メディア</b>:ITmedia AI+、TechCrunch(AIカテゴリ)、BRIDGE、Publickey、OpenAI News、Hugging Face Blog、gihyo.jp、IEEE Spectrum(AIトピック)。</li>
         </ul>
       </div>
+
       <div class="panel">
-        <h3>変更できる項目</h3>
-        <ul>
-          <li>抽出キーワード(除外したい語の指定を含む)</li>
-          <li>取得するサイトとRSS</li>
-          <li>実行する時刻と回数</li>
-          <li>配信先(Slack以外のメールやチャットなど)</li>
+        <h3>コンテンツ利用の考え方</h3>
+        <ul class="b">
+          <li>取得元は各メディア公式のRSS/Atomのみ。記事ページのHTMLは取得しない。</li>
+          <li>表示するのは、RSSで提供されたタイトルと概要文だけ。概要文は表示のためにHTMLタグと余分な空白を除くだけで、要約・翻訳・切り詰めはしない。</li>
+          <li>すべての記事にメディア名と元記事へのリンクを付ける。</li>
+          <li>RSSの利用条件でよく求められる「提供内容のみ表示、改変しない、発信元とリンクを示す」に沿うための設計。利用条件は変わることがあるので、運用前に各メディアの最新の条件を確認する。</li>
+          <li>設定ファイルに記載したサイトだけを対象にし、運営者から中止の要請があれば該当サイトを削除して直ちに止める。</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h3>機能要件</h3>
+        <div class="tblwrap"><table>
+          <thead><tr><th>区分</th><th>仕様</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">収集</th><td>実行時刻から過去24時間以内に公開された記事。日時はJSTに統一し、公開日時のない記事は対象外</td></tr>
+            <tr><th scope="row">抽出</th><td>タイトルと概要文に日英のAI関連キーワード(AI、生成AI、LLM、OpenAI、generative AI など12語)を1つ以上含む記事。AI専門カテゴリや公式ブログのフィードは、サイト単位でキーワード判定を省略できる</td></tr>
+            <tr><th scope="row">除外</th><td>タイトルに【PR】などの広告表記、タイアップ、広告、ウェビナー、Sponsored などを含む記事(単体の「PR」はプルリクエストと区別できないため対象外)</td></tr>
+            <tr><th scope="row">重複排除</th><td>計測用パラメータを除いた正規化URLで判定。通知履歴をJSONで直近7日分保持</td></tr>
+            <tr><th scope="row">件数</th><td>1サイト1回あたり新しい順に最大10件。超えたサイトは件数を付記し、24時間以内なら次回以降に配信</td></tr>
+            <tr><th scope="row">配信</th><td>サイトごとに1通。上限を超えたら分割。表示はメディア名・タイトル(リンク)・公開日時・RSS概要文。リンクプレビューは無効。各回の先頭にサイト別件数の見出し、末尾に区切りを投稿</td></tr>
+            <tr><th scope="row">0件時</th><td>0件・取得失敗のサイトもそれぞれ1通で知らせる(「新着なし」と「止まっている」を毎回見分けられるようにするため)。全サイトの取得に失敗した場合はニュース側には通知せず、警告のみ</td></tr>
+            <tr><th scope="row">スケジュール</th><td>毎日 06:15 / 16:15(JST)予定。GitHubの定期実行は約1時間遅れるため前倒しし、配信は7時台・17時台。手動実行は「本番」「ドライラン(送信・履歴更新なし、ログのみ)」「警告チャンネルのテスト送信」を選べる</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+
+      <div class="panel">
+        <h3>非機能要件</h3>
+        <div class="tblwrap"><table>
+          <thead><tr><th>区分</th><th>仕様</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">アクセス配慮</th><td>1リクエストごとに2秒待機、タイムアウト10秒。User-Agentにボット名と連絡先URLを明記</td></tr>
+            <tr><th scope="row">リトライ</th><td>通信エラー・5xxは3秒間隔で最大3回。4xxはリトライしない。Slackは429もリトライ</td></tr>
+            <tr><th scope="row">フェイルソフト</th><td>1サイトが失敗しても残りのサイトを処理して配信する</td></tr>
+            <tr><th scope="row">失敗時の順序</th><td>送信できた分の履歴を保存 → 警告チャンネルへ送信 → ジョブを異常終了(GitHubのメール通知で検知)</td></tr>
+            <tr><th scope="row">監視</th><td>サイト別の取得件数と処理経過をログ出力。取得失敗・送信失敗・全サイト失敗を警告チャンネルへ通知</td></tr>
+            <tr><th scope="row">同時実行制御</th><td>定期実行と手動実行が重なっても履歴が競合しないよう直列化</td></tr>
+            <tr><th scope="row">保守性</th><td>サイト・キーワード・上限・待機秒数などは設定ファイルに外出し。コードを変えずに運用を変えられる</td></tr>
+            <tr><th scope="row">セキュリティ</th><td>Webhook URL 2件は GitHub Actions の Secrets で管理し、コードやログに出さない。ワークフローの権限は contents: write のみ</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="design">
+  <div class="sec-label">Design</div>
+  <div class="sec-body">
+    <h2>基本設計</h2>
+    <p class="sec-note">GitHub Actionsのジョブが1回で収集から配信までを行い、状態(通知履歴)はリポジトリ内のJSONファイルだけで持ちます。外部DBや常駐プロセスは使わず、依存ライブラリとActionsはバージョンを固定しています。</p>
+    <div class="stack">
+      <div class="panel">
+        <h3>構成</h3>
+        <pre class="code">GitHub Actions(cron / 手動)
+  → RSS取得(8サイト)→ 絞り込み・重複排除 → Slack送信(ニュース / 警告)
+  → data/history.json を更新して commit・push</pre>
+      </div>
+
+      <div class="panel">
+        <h3>モジュール</h3>
+        <div class="tblwrap"><table>
+          <thead><tr><th>ファイル</th><th>責務</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">main.py</th><td>実行モードの受け取り、パイプライン制御、終了コード</td></tr>
+            <tr><th scope="row">config.py</th><td>設定ファイルと Secrets の読み込み・入力チェック</td></tr>
+            <tr><th scope="row">http_client.py</th><td>待機・タイムアウト・User-Agent・リトライの共通処理</td></tr>
+            <tr><th scope="row">fetcher.py</th><td>RSS取得・解析、JST変換、HTMLタグ除去</td></tr>
+            <tr><th scope="row">filters.py / url_utils.py</th><td>時間・キーワード・除外の判定、URL正規化</td></tr>
+            <tr><th scope="row">history.py</th><td>履歴の読み書き・重複判定・7日ローテーション</td></tr>
+            <tr><th scope="row">notifier.py</th><td>Slackメッセージの組み立て(開始見出し・サイト別・0件/取得失敗・終了区切り)・エスケープ・分割・送信</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+
+      <div class="panel">
+        <h3>設定ファイル(settings.yaml の抽粋)</h3>
+        <pre class="code">sites:
+  - {name: ITmedia, feed_url: "https://rss.itmedia.co.jp/rss/2.0/aiplus.xml", summarize: false}
+  # ほか7サイトも同様。AI専門のフィードは keyword_filter: false
+keywords:
+  include: [AI, 生成AI, LLM, OpenAI, generative AI, ...]
+  exclude_title: [【PR】, "[PR]", "PR:", タイアップ, 広告, ウェビナー, Sponsored, ...]
+limits: {window_hours: 24, max_per_site: 10, history_days: 7}
+http: {wait_sec: 2, timeout_sec: 10, retry_count: 3, retry_interval_sec: 3}
+slack: {wait_sec: 2, max_blocks_per_message: 45}</pre>
+      </div>
+
+      <div class="panel">
+        <h3>処理フロー</h3>
+        <ol class="n">
+          <li>設定・Secrets・履歴を読み込む(失敗したらその場で異常終了)。</li>
+          <li>サイトごとにRSSを取得。失敗したサイトは記録して次へ。</li>
+          <li>時間 → キーワード → 除外 → 重複排除の順に絞り込む。</li>
+          <li>サイトごとに新しい順に並べ、各サイト先頭10件を残す。</li>
+          <li>開始見出し → サイトごとの投稿(0件・取得失敗も1通)→ 終了区切りの順に送信し、送信できた1通に載せた記事だけを履歴に確定する。</li>
+          <li>履歴を保存し、必要なら警告を送り、送信失敗があれば異常終了する。</li>
+        </ol>
+      </div>
+
+      <div class="panel">
+        <h3>ワークフロー</h3>
+        <ul class="b">
+          <li>定期実行は cron をUTCで指定し、実績で約1時間遅れるため、目標時刻の約1時間前(06:15 / 16:15 JST)に設定する。</li>
+          <li>定期実行では手動実行用の入力が空になるため、モードはワークフロー側の式で確定させてからPythonへ渡す。</li>
+          <li>履歴の commit・push は、Pythonが異常終了しても必ず実行する(送信できた分を失わないため)。</li>
+          <li>別に、push ごとに単体テストを実行するワークフローを用意。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="quality">
+  <div class="sec-label">Quality</div>
+  <div class="sec-body">
+    <h2>設計上の工夫とテスト</h2>
+    <p class="sec-note">動かして見つかった問題と、その対処をまとめています。</p>
+    <div class="stack">
+      <div class="panel">
+        <div class="tblwrap"><table>
+          <thead><tr><th>課題</th><th>工夫</th></tr></thead>
+          <tbody>
+            <tr><td>「生成AIの」のAIが一致しない、emailのaiに誤って一致する</td><td>正規表現の <code>\b</code> は日本語も単語の文字とみなすため使わず、「前後にアルファベットが続かない」という前後判定で記述。全角・半角はNFKCで吸収</td></tr>
+            <tr><td>送信失敗した記事が「通知済み」になり、二度と届かない</td><td>送信できた1通に載せた記事だけを履歴に確定。分割送信の途中で失敗しても、未送信分は次回再送される</td></tr>
+            <tr><td>履歴ローテーション後に同じ記事が再通知される</td><td>公開日時のない記事を対象外にし、「常に24時間以内」と判定される記事を生まない</td></tr>
+            <tr><td>タイトルの <code>&amp; &lt; &gt;</code> でSlackのリンクが壊れる</td><td>値ごとにエスケープしてからリンク形式に組み立てる</td></tr>
+            <tr><td>Slack自体が落ちていると警告も届かない</td><td>送信失敗時はジョブを異常終了させ、GitHubのメール通知で検知する</td></tr>
+            <tr><td>全サイト障害時に「該当なし」と誤報する</td><td>「新着なし(正常)」と「取得全滅(異常)」を区別し、後者は警告のみ</td></tr>
+            <tr><td>本番を汚さずに動作確認したい</td><td>ドライランモード(送信・履歴更新なし、送信内容をログ出力)を手動実行の既定にする</td></tr>
+            <tr><td>ライブラリ更新で突然壊れる</td><td>依存ライブラリとActionsのバージョンを固定</td></tr>
+            <tr><td>1サイトの新着が多いと、件数上限を1サイトが占有する</td><td>上限を全体ではなくサイトごとに設定(各10件)。あふれた記事は履歴に入れず、24時間以内なら次回に配信</td></tr>
+            <tr><td>AI専門カテゴリの記事が、タイトルにキーワードを含まず漏れる</td><td>サイト単位でキーワード判定を省略できる設定(keyword_filter)を追加。広告の除外語は引き続き適用</td></tr>
+            <tr><td>除外語「PR」が「GitHubのPR修正」(プルリクエスト)に誤一致する</td><td>除外語を【PR】・[PR]・PR: などの広告表記の形に限定し、テストで両方を確認</td></tr>
+            <tr><td>GitHubの定期実行が約1時間遅れる</td><td>実績の遅れを測り、目標より約1時間早い時刻に設定</td></tr>
+            <tr><td>連続投稿で、どこから今回分か分からない</td><td>各回の先頭に件数一覧の見出し、末尾に区切りを投稿</td></tr>
+            <tr><td>警告チャンネルが本当に届くか、障害が起きるまで分からない</td><td>警告チャンネルへテスト通知だけを送る手動モードを用意し、到達を確認</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+
+      <div class="panel">
+        <h3>テスト</h3>
+        <p class="plain">pytest で単体テスト64件(拡張モジュールのテストを含む)。外部通信はすべて差し替え、次を確認しています。</p>
+        <ul class="b">
+          <li>キーワードの一致・不一致(「生成AIの」「全角ＡＩ」「email」「PRESS」など)、広告表記「【PR】」とプルリクエストの「PR」の区別、24時間の境界</li>
+          <li>URL正規化、履歴のローテーションと壊れたファイルの検出</li>
+          <li>エスケープの順序、分割、省略件数の付記位置、Slack送信のリトライ</li>
+          <li>パイプライン全体:送信失敗時の履歴、分割途中の失敗、全サイト失敗、ドライラン、Secretsの不足、サイトごとの上限と超過表示、0件・取得失敗の通知、開始見出しと終了区切り、警告チャンネルのテスト送信</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="next">
+  <div class="sec-label">Next</div>
+  <div class="sec-body">
+    <h2>拡張と今後の改善</h2>
+    <div class="stack">
+      <div class="panel">
+        <h3>AI要約モジュール(実装済み・既定では無効)</h3>
+        <p class="plain">サイトごとの summarize を true にすると、記事本文を取得して生成AI(Gemini API)で日本語に要約する構成を実装しています。公開版では、記事の利用条件に配慮して全サイト false(無効)を既定とします。有効にする場合は、対象サイトの利用規約が本文の自動取得と要約を許しているかを先に確認します。</p>
+        <div class="tblwrap"><table>
+          <thead><tr><th>設計</th><th>内容</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">本文取得</th><td>robots.txt をホストごとに確認。取得に失敗したらRSS概要文を要約元にする</td></tr>
+            <tr><th scope="row">リトライ</th><td>429/5xx は待機時間を倍々に伸ばして再試行。上限を超えたら代替モデルへ切り替え</td></tr>
+            <tr><th scope="row">失敗時</th><td>要約できなければ【RSS概要】ラベルでRSS概要文を配信し、記事が届かない事態を防ぐ</td></tr>
+            <tr><th scope="row">品質</th><td>120文字程度を指示し、上限を超えたら文末(「。」)で切る。記事中の指示文には従わないよう指示。モデルが付け足す「(121文字)」などの注記は除去</td></tr>
+            <tr><th scope="row">追加のSecrets</th><td>Gemini APIキー(有効にする場合のみ必要)</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+
+      <div class="panel">
+        <h3>今後の改善候補</h3>
+        <ul class="check">
+          <li>別メディアが報じた同じニュースの重複を、タイトルの類似度でまとめる</li>
+          <li class="done">AI専門カテゴリのフィードは、キーワード判定を省略できるようにする</li>
+          <li>配信件数や失敗率を集計して、週次でレポートする</li>
         </ul>
       </div>
     </div>
@@ -316,24 +526,32 @@ function markUp(text,ranges){
 function render(){
   var kws=parseKw($('#kw').value);
   var on={A:$('#srcA').checked,B:$('#srcB').checked,C:$('#srcC').checked,D:$('#srcD').checked};
-  var fetched=0,got=0,html='',slack=[];
+  var fetched=0,got=0,html='',by={A:[],B:[],C:[],D:[]};
   ARTS.forEach(function(a){
     if(!on[a.src])return;
     fetched++;
     var t=find(a.title,kws),s=find(a.sum,kws),hit=[];
     kws.forEach(function(k){if(t.hit[k]||s.hit[k])hit.push(k)});
     var ok=hit.length>0;
-    if(ok){got++;slack.push('[媒体'+a.src+'] '+a.title+'\n【RSS概要】'+a.sum+'\n'+a.url)}
+    if(ok){got++;by[a.src].push(a)}
     html+='<li class="'+(ok?'on':'off')+'"><div class="meta"><span>媒体'+a.src+'</span><span>'+esc(a.date)+'</span>'+
       hit.map(function(k){return '<span class="hit">'+esc(k)+'</span>'}).join('')+'</div>'+
       '<h4><span class="sr">'+(ok?'抽出: ':'対象外: ')+'</span>'+markUp(a.title,t.ranges)+'</h4><p>'+markUp(a.sum,s.ranges)+'</p></li>';
   });
   $('#cFetched').textContent=fetched;$('#cKept').textContent=got;$('#cDropped').textContent=fetched-got;
   $('#artList').innerHTML=html||'<li class="empty">取得先が選ばれていません。媒体にチェックを入れてください。</li>';
+  var sites=['A','B','C','D'].filter(function(k){return on[k]});
   var msg;
   if(!kws.length)msg='キーワードが空のため、配信する記事はありません。';
-  else if(!got)msg='一致する記事がないため、配信はありません。キーワードを見直してください。';
-  else msg='新着ニュース '+got+'件\n\n'+slack.join('\n\n');
+  else if(!sites.length)msg='取得先が選ばれていません。';
+  else{
+    var posts=sites.map(function(k){
+      var l=by[k];
+      if(!l.length)return '[媒体'+k+'] 新着なし';
+      return '[媒体'+k+'] '+l.length+'件\n'+l.map(function(a){return '・'+a.title+'('+a.date+')\n  【RSS概要】'+a.sum+'\n  '+a.url}).join('\n');
+    });
+    msg='【AIニュース】新着 '+got+'件('+sites.map(function(k){return '媒体'+k+' '+by[k].length}).join(' / ')+')\n\n'+posts.join('\n\n')+'\n\n――― 以上 ―――';
+  }
   $('#slackMsg').textContent=msg;
 }
 ['#kw','#srcA','#srcB','#srcC','#srcD'].forEach(function(s){$(s).addEventListener('input',render)});
